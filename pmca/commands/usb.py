@@ -394,7 +394,7 @@ def gpsUpdateCommand(file=None, driverName=None):
    print('Done')
 
 
-def streamingCommand(file=None, driverName=None):
+def streamingCommand(write=None, file=None, driverName=None):
  """Read/Write Streaming information for the camera connected via usb"""
  with importDriver(driverName) as driver:
   device = getDevice(driver)
@@ -410,8 +410,30 @@ def streamingCommand(file=None, driverName=None):
     ]
    else:
     dev = SonyExtCmdCamera(device)
+    # Read settings from camera
     (info1, info2, info3) = dev.getLiveStreamingServiceInfo()
     social = dev.getLiveStreamingSocialInfo()
+
+    if write:
+     # Write camera settings from file
+     props = json.load(write)
+     mydict = {}
+     for item in props:
+      mydict[item[0]]=item[1]
+
+     newsocial = SonyExtCmdCamera.LiveStreamingSNSInfo.pack(
+      twitterEnabled = mydict['twitterEnabled'],
+      twitterConsumerKey = mydict['twitterConsumerKey'].encode(),
+      twitterConsumerSecret = mydict['twitterConsumerSecret'].encode(),
+      twitterAccessToken1 = mydict['twitterAccessToken1'].encode(),
+      twitterAccessTokenSecret = mydict['twitterAccessTokenSecret'].encode(),
+      twitterMessage = mydict['twitterMessage'].encode(),
+      facebookEnabled = mydict['facebookEnabled'],
+      facebookAccessToken = mydict['facebookAccessToken'].encode(),
+      facebookMessage = mydict['facebookMessage'].encode(),
+     )
+     dev.setLiveStreamingSocialInfo(newsocial)
+     return
 
     props = [
      ('Service', info1.service),

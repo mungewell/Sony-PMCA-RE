@@ -344,6 +344,10 @@ class SonyExtCmdCamera(object):
   """Returns the live streaming social media configuration"""
   return self.LiveStreamingSNSInfo.unpack(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetLiveStreamingSNSInfo))
 
+ def setLiveStreamingSocialInfo(self, data):
+  """Sets the live streaming social media configuration"""
+  return self._sendCommand(self.SONY_CMD_NetworkServiceInfo_SetLiveStreamingSNSInfo, data)
+
  def _parseAPs(self, data):
   for i in range(parse32le(data.read(4))):
    yield self.APInfo.unpack(data.read(self.APInfo.size))

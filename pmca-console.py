@@ -49,6 +49,7 @@ def main():
  stream = subparsers.add_parser('stream', description='Update streaming data')
  stream.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  stream.add_argument('-f', dest='file', type=argparse.FileType('w'), help='save current settings to file')
+ stream.add_argument('-w', dest='write', type=argparse.FileType('r'), help='program cammera settings from file')
 
  args = parser.parse_args()
  if args.command == 'info':
@@ -74,7 +75,7 @@ def main():
  elif args.command == 'gps':
   gpsUpdateCommand(args.file, args.driver)
  elif args.command == 'stream':
-  streamingCommand(args.file, args.driver)
+  streamingCommand(args.write, args.file, args.driver)
  else:
   parser.print_usage()
 
