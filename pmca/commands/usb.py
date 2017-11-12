@@ -392,3 +392,52 @@ def gpsUpdateCommand(file=None, driverName=None):
    print('Writing GPS data')
    SonyExtCmdCamera(device).writeGpsData(file)
    print('Done')
+
+
+def streamingCommand(file=None, driverName=None):
+ """Read/Write Streaming information for the camera connected via usb"""
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   if isinstance(device, SonyMtpAppInstaller):
+    info = installApp(device)
+    print('')
+    props = [
+     ('Model', info['deviceinfo']['name']),
+     ('Product code', info['deviceinfo']['productcode']),
+     ('Serial number', info['deviceinfo']['deviceid']),
+     ('Firmware version', info['deviceinfo']['fwversion']),
+    ]
+   else:
+    dev = SonyExtCmdCamera(device)
+    (info1, info2, info3) = dev.getLiveStreamingServiceInfo()
+    social = dev.getLiveStreamingSocialInfo()
+
+    props = [
+     ('Service', info1.service),
+     ('Enabled', info1.enabled),
+     ('macId', info1.macId.decode('ascii')),
+     ('macSecret', info1.macSecret.decode('ascii')),
+     ('macIssueTime', binascii.b2a_hex(info1.macIssueTime).decode('ascii')),
+     ('shortURL', info2.shortURL.decode('ascii')),
+     ('videoFormat', info2.videoFormat),
+     ('enableRecordMode', info3.enableRecordMode),
+     ('videoDescription', info3.videoDescription.decode('ascii')),
+     ('videoTag', info3.videoTag.decode('ascii')),
+     ('twitterEnabled', social.twitterEnabled),
+     ('twitterConsumerKey', social.twitterConsumerKey.decode('ascii')),
+     ('twitterConsumerSecret', social.twitterConsumerSecret.decode('ascii')),
+     ('twitterAccessToken1', social.twitterAccessToken1.decode('ascii')),
+     ('twitterAccessTokenSecret', social.twitterAccessTokenSecret.decode('ascii')),
+     ('twitterMessage', social.twitterMessage.decode('ascii')),
+     ('facebookEnabled', social.facebookEnabled),
+     ('facebookAccessToken', social.facebookAccessToken.decode('ascii')),
+     ('facebookMessage', social.facebookMessage.decode('ascii')),
+    ]
+
+   if file:
+    file.write(json.dumps(props))
+   else:
+    # Just print to screen
+    for k, v in props:
+     print('%-20s%s' % (k + ': ', v))

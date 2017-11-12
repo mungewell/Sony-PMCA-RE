@@ -46,6 +46,9 @@ def main():
  gps = subparsers.add_parser('gps', description='Update GPS assist data')
  gps.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  gps.add_argument('-f', dest='file', type=argparse.FileType('rb'), help='assistme.dat file')
+ stream = subparsers.add_parser('stream', description='Update streaming data')
+ stream.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
+ stream.add_argument('-f', dest='file', type=argparse.FileType('w'), help='save current settings to file')
 
  args = parser.parse_args()
  if args.command == 'info':
@@ -70,6 +73,8 @@ def main():
   updaterShellCommand(args.model, args.fdatFile, args.driver)
  elif args.command == 'gps':
   gpsUpdateCommand(args.file, args.driver)
+ elif args.command == 'stream':
+  streamingCommand(args.file, args.driver)
  else:
   parser.print_usage()
 

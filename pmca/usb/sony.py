@@ -329,6 +329,7 @@ class SonyExtCmdCamera(object):
    info2 = self.LiveStreamingServiceInfo2.unpack(data.read(self.LiveStreamingServiceInfo2.size))
    supportedFormats = [parse32le(data.read(4)) for j in range(parse32le(data.read(4)))]
    info3 = self.LiveStreamingServiceInfo3.unpack(data.read(self.LiveStreamingServiceInfo3.size))
+   '''
    yield OrderedDict(e for d in [
     info1._asdict(),
     {'channels': channels},
@@ -336,6 +337,8 @@ class SonyExtCmdCamera(object):
     {'supportedFormats': supportedFormats},
     info3._asdict(),
    ] for e in d.items())
+   '''
+   return(info1, info2, info3)
 
  def getLiveStreamingSocialInfo(self):
   """Returns the live streaming social media configuration"""
