@@ -323,7 +323,8 @@ class SonyExtCmdCamera(object):
   """Returns the live streaming ustream configuration"""
   data = BytesIO(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetLiveStreamingServiceInfo))
   data.read(4)
-  for i in range(parse32le(data.read(4))):
+  qty = parse32le(data.read(4))
+  for i in range(qty):
    info1 = self.LiveStreamingServiceInfo1.unpack(data.read(self.LiveStreamingServiceInfo1.size))
    channels = [parse32le(data.read(4)) for j in range(parse32le(data.read(4)))]
    info2 = self.LiveStreamingServiceInfo2.unpack(data.read(self.LiveStreamingServiceInfo2.size))
@@ -338,7 +339,11 @@ class SonyExtCmdCamera(object):
     info3._asdict(),
    ] for e in d.items())
    '''
-   return(info1, info2, info3)
+   return(info1, info2, info3, channels, supportedFormats, qty)
+
+ def setLiveStreamingServiceInfo(self, data):
+  """Sets the live streaming ustream configuration"""
+  return self._sendCommand(self.SONY_CMD_NetworkServiceInfo_SetLiveStreamingServiceInfo, data)
 
  def getLiveStreamingSocialInfo(self):
   """Returns the live streaming social media configuration"""

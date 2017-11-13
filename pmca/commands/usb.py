@@ -410,16 +410,56 @@ def streamingCommand(write=None, file=None, driverName=None):
     ]
    else:
     dev = SonyExtCmdCamera(device)
-    # Read settings from camera
-    (info1, info2, info3) = dev.getLiveStreamingServiceInfo()
+    # Read settings from camera (do this first so we know channels/supportedFormats)
+    (info1, info2, info3, channels, supportedFormats, qty) = dev.getLiveStreamingServiceInfo()
     social = dev.getLiveStreamingSocialInfo()
 
     if write:
+     if qty != 1:
+      print("QTY is more than 1, panic!")
+      return
+
      # Write camera settings from file
      props = json.load(write)
      mydict = {}
      for item in props:
       mydict[item[0]]=item[1]
+
+     newinfo1 = SonyExtCmdCamera.LiveStreamingServiceInfo1.pack(
+      service = mydict['service'],
+      enabled = mydict['enabled'],
+      macId = mydict['macId'].encode(),
+      macSecret = mydict['macSecret'].encode(),
+      macIssueTime = binascii.a2b_hex(mydict['macIssueTime']),
+      unknown = 0,
+     )
+
+     newinfo2 = SonyExtCmdCamera.LiveStreamingServiceInfo2.pack(
+      shortURL = mydict['shortURL'].encode(),
+      videoFormat = mydict['videoFormat'],
+     )
+
+     newinfo3 = SonyExtCmdCamera.LiveStreamingServiceInfo3.pack(
+      enableRecordMode = mydict['enableRecordMode'],
+      videoTitle = mydict['videoTitle'].encode(),
+      videoDescription = mydict['videoDescription'].encode(),
+      videoTag = mydict['videoTag'].encode(),
+     )
+
+     # nasty re-assemble
+     data = (1).to_bytes(4, byteorder='little')
+     data += (qty).to_bytes(4, byteorder='little')
+     data += newinfo1
+     data += len(channels).to_bytes(4, byteorder='little')
+     for j in range(len(channels)):
+      data += channels[j].to_bytes(4, byteorder='little')
+     data += newinfo2
+     data += len(supportedFormats).to_bytes(4, byteorder='little')
+     for j in range(len(supportedFormats)):
+      data += supportedFormats[j].to_bytes(4, byteorder='little')
+     data += newinfo3
+
+     dev.setLiveStreamingServiceInfo(data)
 
      newsocial = SonyExtCmdCamera.LiveStreamingSNSInfo.pack(
       twitterEnabled = mydict['twitterEnabled'],
@@ -436,14 +476,15 @@ def streamingCommand(write=None, file=None, driverName=None):
      return
 
     props = [
-     ('Service', info1.service),
-     ('Enabled', info1.enabled),
+     ('service', info1.service),
+     ('enabled', info1.enabled),
      ('macId', info1.macId.decode('ascii')),
      ('macSecret', info1.macSecret.decode('ascii')),
      ('macIssueTime', binascii.b2a_hex(info1.macIssueTime).decode('ascii')),
      ('shortURL', info2.shortURL.decode('ascii')),
      ('videoFormat', info2.videoFormat),
      ('enableRecordMode', info3.enableRecordMode),
+     ('videoTitle', info3.videoTitle.decode('ascii')),
      ('videoDescription', info3.videoDescription.decode('ascii')),
      ('videoTag', info3.videoTag.decode('ascii')),
      ('twitterEnabled', social.twitterEnabled),
