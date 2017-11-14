@@ -410,100 +410,114 @@ def streamingCommand(write=None, file=None, driverName=None):
     ]
    else:
     dev = SonyExtCmdCamera(device)
-    # Read settings from camera (do this first so we know channels/supportedFormats)
-    (info1, info2, info3, channels, supportedFormats, qty) = dev.getLiveStreamingServiceInfo()
-    social = dev.getLiveStreamingSocialInfo()
 
     if write:
-     if qty != 1:
-      print("QTY is more than 1, panic!")
-      return
+     incoming = json.load(write)
 
-     # Write camera settings from file
-     props = json.load(write)
+     # assemble Social (first 9 entries)
      mydict = {}
-     for item in props:
-      mydict[item[0]]=item[1]
+     for key in incoming[:9]:
+      if key[0] in ['twitterEnabled', 'facebookEnabled']:
+       mydict[key[0]] = key[1] # Integer
+      else:
+       mydict[key[0]] = key[1].encode('ascii')
 
-     newinfo1 = SonyExtCmdCamera.LiveStreamingServiceInfo1.pack(
-      service = mydict['service'],
-      enabled = mydict['enabled'],
-      macId = mydict['macId'].encode(),
-      macSecret = mydict['macSecret'].encode(),
-      macIssueTime = binascii.a2b_hex(mydict['macIssueTime']),
-      unknown = 0,
+     data = SonyExtCmdCamera.LiveStreamingSNSInfo.pack(
+      twitterEnabled = mydict['twitterEnabled'],
+      twitterConsumerKey = (mydict['twitterConsumerKey']+(b'\x00'*1025))[:1025],
+      twitterConsumerSecret = (mydict['twitterConsumerSecret']+(b'\x00'*1025))[:1025],
+      twitterAccessToken1 = (mydict['twitterAccessToken1']+(b'\x00'*1025))[:1025],
+      twitterAccessTokenSecret = (mydict['twitterAccessTokenSecret']+(b'\x00'*1025))[:1025],
+      twitterMessage = (mydict['twitterMessage']+(b'\x00'*401))[:401],
+      facebookEnabled = mydict['facebookEnabled'],
+      facebookAccessToken = (mydict['facebookAccessToken']+(b'\x00'*1025))[:1025],
+      facebookMessage = (mydict['facebookMessage']+(b'\x00'*401))[:401],
      )
+     dev.setLiveStreamingSocialInfo(data)
 
-     newinfo2 = SonyExtCmdCamera.LiveStreamingServiceInfo2.pack(
-      shortURL = mydict['shortURL'].encode(),
-      videoFormat = mydict['videoFormat'],
-     )
-
-     newinfo3 = SonyExtCmdCamera.LiveStreamingServiceInfo3.pack(
-      enableRecordMode = mydict['enableRecordMode'],
-      videoTitle = mydict['videoTitle'].encode(),
-      videoDescription = mydict['videoDescription'].encode(),
-      videoTag = mydict['videoTag'].encode(),
-     )
-
-     # nasty re-assemble
+     # assemble Streaming, may be multiple sets of 14
      data = (1).to_bytes(4, byteorder='little')
-     data += (qty).to_bytes(4, byteorder='little')
-     data += newinfo1
-     data += len(channels).to_bytes(4, byteorder='little')
-     for j in range(len(channels)):
-      data += channels[j].to_bytes(4, byteorder='little')
-     data += newinfo2
-     data += len(supportedFormats).to_bytes(4, byteorder='little')
-     for j in range(len(supportedFormats)):
-      data += supportedFormats[j].to_bytes(4, byteorder='little')
-     data += newinfo3
+     data += (int((len(incoming)-9)/14)).to_bytes(4, byteorder='little')
+     mydict = {}
+     count = 1
+     for key in incoming[9:]:
+      if key[0] in ['service', 'enabled', 'videoFormat', 'videoFormat', 'unknown', \
+        'enableRecordMode', 'channels', 'supportedFormats']:
+       mydict[key[0]] = key[1]
+      elif key[0] == 'macIssueTime':
+       mydict[key[0]] = binascii.a2b_hex(key[1])
+      else:
+       mydict[key[0]] = key[1].encode('ascii')
+
+      if count == 14:
+       # reassemble Structs
+       data += SonyExtCmdCamera.LiveStreamingServiceInfo1.pack(
+        service = mydict['service'],
+        enabled = mydict['enabled'],
+        macId = (mydict['macId']+(b'\x00'*41))[:41],
+        macSecret = (mydict['macSecret']+(b'\x00'*41))[:41],
+        macIssueTime = mydict['macIssueTime'],
+        unknown = 0, # mydict['unknown'],
+       )
+
+       data += len(mydict['channels']).to_bytes(4, byteorder='little')
+       for j in range(len(mydict['channels'])):
+        data += mydict['channels'][j].to_bytes(4, byteorder='little')
+
+       data += SonyExtCmdCamera.LiveStreamingServiceInfo2.pack(
+        shortURL = (mydict['shortURL']+(b'\x00'*101))[:101],
+        videoFormat = mydict['videoFormat'],
+       )
+
+       data += len(mydict['supportedFormats']).to_bytes(4, byteorder='little')
+       for j in range(len(mydict['supportedFormats'])):
+        data += mydict['supportedFormats'][j].to_bytes(4, byteorder='little')
+
+       data += SonyExtCmdCamera.LiveStreamingServiceInfo3.pack(
+        enableRecordMode = mydict['enableRecordMode'],
+        videoTitle = (mydict['videoTitle']+(b'\x00'*401))[:401],
+        videoDescription = (mydict['videoDescription']+(b'\x00'*401))[:401],
+        videoTag = (mydict['videoTag']+(b'\x00'*401))[:401],
+       )
+       count = 1
+      else:
+       count += 1
 
      dev.setLiveStreamingServiceInfo(data)
-
-     newsocial = SonyExtCmdCamera.LiveStreamingSNSInfo.pack(
-      twitterEnabled = mydict['twitterEnabled'],
-      twitterConsumerKey = mydict['twitterConsumerKey'].encode(),
-      twitterConsumerSecret = mydict['twitterConsumerSecret'].encode(),
-      twitterAccessToken1 = mydict['twitterAccessToken1'].encode(),
-      twitterAccessTokenSecret = mydict['twitterAccessTokenSecret'].encode(),
-      twitterMessage = mydict['twitterMessage'].encode(),
-      facebookEnabled = mydict['facebookEnabled'],
-      facebookAccessToken = mydict['facebookAccessToken'].encode(),
-      facebookMessage = mydict['facebookMessage'].encode(),
-     )
-     dev.setLiveStreamingSocialInfo(newsocial)
      return
 
-    props = [
-     ('service', info1.service),
-     ('enabled', info1.enabled),
-     ('macId', info1.macId.decode('ascii')),
-     ('macSecret', info1.macSecret.decode('ascii')),
-     ('macIssueTime', binascii.b2a_hex(info1.macIssueTime).decode('ascii')),
-     ('shortURL', info2.shortURL.decode('ascii')),
-     ('videoFormat', info2.videoFormat),
-     ('enableRecordMode', info3.enableRecordMode),
-     ('videoTitle', info3.videoTitle.decode('ascii')),
-     ('videoDescription', info3.videoDescription.decode('ascii')),
-     ('videoTag', info3.videoTag.decode('ascii')),
-     ('twitterEnabled', social.twitterEnabled),
-     ('twitterConsumerKey', social.twitterConsumerKey.decode('ascii')),
-     ('twitterConsumerSecret', social.twitterConsumerSecret.decode('ascii')),
-     ('twitterAccessToken1', social.twitterAccessToken1.decode('ascii')),
-     ('twitterAccessTokenSecret', social.twitterAccessTokenSecret.decode('ascii')),
-     ('twitterMessage', social.twitterMessage.decode('ascii')),
-     ('facebookEnabled', social.facebookEnabled),
-     ('facebookAccessToken', social.facebookAccessToken.decode('ascii')),
-     ('facebookMessage', social.facebookMessage.decode('ascii')),
-    ]
+    # Read settings from camera (do this first so we know channels/supportedFormats)
+    settings = dev.getLiveStreamingServiceInfo()
+    social = dev.getLiveStreamingSocialInfo()
 
-   if file:
-    file.write(json.dumps(props))
-   else:
-    # Just print to screen
-    for k, v in props:
-     print('%-20s%s' % (k + ': ', v))
+    data = []
+    # Social settings
+    for key in (social._asdict()).items():
+     if key[0] in ['twitterEnabled', 'facebookEnabled']:
+      data.append([key[0], key[1]])
+     else:
+      data.append([key[0], key[1].decode('ascii').split('\x00')[0]])
+
+    # Streaming settings, may be muliple sets of data
+    try:
+     for key in next(settings).items():
+      if key[0] in ['service', 'enabled', 'videoFormat', 'enableRecordMode', \
+        'unknown', 'channels', 'supportedFormats']:
+       data.append([key[0], key[1]])
+      elif key[0] == 'macIssueTime':
+       data.append([key[0], binascii.b2a_hex(key[1]).decode('ascii')])
+      else:
+       data.append([key[0], key[1].decode('ascii').split('\x00')[0]])
+    except StopIteration:
+     pass
+
+    if file:
+     file.write(json.dumps(data, indent=4))
+    else:
+     # Just print to screen
+     for k, v in data:
+      print('%-20s%s' % (k + ': ', v))
+
 
 def wifiCommand(write=None, file=None, multi=False, driverName=None):
  """Read/Write WiFi information for the camera connected via usb"""
