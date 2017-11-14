@@ -50,6 +50,11 @@ def main():
  stream.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
  stream.add_argument('-f', dest='file', type=argparse.FileType('w'), help='save current settings to file')
  stream.add_argument('-w', dest='write', type=argparse.FileType('r'), help='program cammera settings from file')
+ wifi = subparsers.add_parser('wifi', description='Update WiFi data')
+ wifi.add_argument('-d', dest='driver', choices=['libusb', 'native'], help='specify the driver')
+ wifi.add_argument('-m', dest='multi', action='store_true', help='Read/Write "Multi-WiFi" settings')
+ wifi.add_argument('-f', dest='file', type=argparse.FileType('w'), help='save current settings to file')
+ wifi.add_argument('-w', dest='write', type=argparse.FileType('r'), help='program cammera settings from file')
 
  args = parser.parse_args()
  if args.command == 'info':
@@ -76,6 +81,8 @@ def main():
   gpsUpdateCommand(args.file, args.driver)
  elif args.command == 'stream':
   streamingCommand(args.write, args.file, args.driver)
+ elif args.command == 'wifi':
+  wifiCommand(args.write, args.file, args.multi, args.driver)
  else:
   parser.print_usage()
 

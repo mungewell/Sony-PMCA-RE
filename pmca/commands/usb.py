@@ -504,3 +504,73 @@ def streamingCommand(write=None, file=None, driverName=None):
     # Just print to screen
     for k, v in props:
      print('%-20s%s' % (k + ': ', v))
+
+def wifiCommand(write=None, file=None, multi=False, driverName=None):
+ """Read/Write WiFi information for the camera connected via usb"""
+ with importDriver(driverName) as driver:
+  device = getDevice(driver)
+  if device:
+   if isinstance(device, SonyMtpAppInstaller):
+    info = installApp(device)
+    print('')
+    props = [
+     ('Model', info['deviceinfo']['name']),
+     ('Product code', info['deviceinfo']['productcode']),
+     ('Serial number', info['deviceinfo']['deviceid']),
+     ('Firmware version', info['deviceinfo']['fwversion']),
+    ]
+   else:
+    dev = SonyExtCmdCamera(device)
+
+    if write:
+     incoming = json.load(write)
+     data = (int(len(incoming)/3)).to_bytes(4, byteorder='little')
+
+     mydict = {}
+     count = 1
+     for key in incoming:
+      if key[0] == 'keyType':
+       mydict[key[0]] = key[1] # Integer
+      else:
+       mydict[key[0]] = key[1].encode('ascii')
+
+      if count == 3:
+       # reassemble Struct
+       apinfo = SonyExtCmdCamera.APInfo.pack(
+        keyType = mydict['keyType'],
+        sid = (mydict['sid']+(b'\x00'*33))[:33],
+        key = (mydict['key']+(b'\x00'*65))[:65],
+       )
+       data += apinfo
+       count = 1
+      else:
+       count += 1
+
+     if multi:
+      dev.setMultiWifiAPInfo(data)
+     else:
+      dev.setWifiAPInfo(data)
+     return
+
+    # Read settings from camera
+    if multi:
+     settings = dev.getMultiWifiAPInfo()
+    else:
+     settings = dev.getWifiAPInfo()
+
+    data = []
+    try:
+     for key in next(settings)._asdict().items():
+      if key[0] == 'keyType':
+       data.append([key[0], key[1]]) # Integer
+      else:
+       data.append([key[0],key[1].decode('ascii').split('\x00')[0]])
+    except StopIteration:
+     pass
+
+    if file:
+     file.write(json.dumps(data, indent=4))
+    else:
+     # Just print to screen
+     for k, v in data:
+      print('%-20s%s' % (k + ': ', v))

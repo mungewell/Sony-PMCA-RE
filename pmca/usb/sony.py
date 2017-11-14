@@ -362,10 +362,18 @@ class SonyExtCmdCamera(object):
   for ap in self._parseAPs(BytesIO(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetWifiAPInfo))):
    yield ap
 
+ def setWifiAPInfo(self, data):
+  """Sets the live streaming access point configuration"""
+  return self._sendCommand(self.SONY_CMD_NetworkServiceInfo_SetWifiAPInfo, data)
+
  def getMultiWifiAPInfo(self):
   """Returns the live streaming multi access point configuration"""
   for ap in self._parseAPs(BytesIO(self._sendCommand(self.SONY_CMD_NetworkServiceInfo_GetMultiWifiAPInfo))):
    yield ap
+
+ def setMultiWifiAPInfo(self, data):
+  """Sets the live streaming multi access point configuration"""
+  return self._sendCommand(self.SONY_CMD_NetworkServiceInfo_SetMultiWifiAPInfo, data)
 
 
 class SonyUpdaterSequenceError(Exception):
