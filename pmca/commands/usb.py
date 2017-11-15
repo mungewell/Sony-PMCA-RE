@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import time
+import struct
 
 if sys.version_info < (3,):
  # Python 2
@@ -400,14 +401,7 @@ def streamingCommand(write=None, file=None, driverName=None):
   device = getDevice(driver)
   if device:
    if isinstance(device, SonyMtpAppInstaller):
-    info = installApp(device)
-    print('')
-    props = [
-     ('Model', info['deviceinfo']['name']),
-     ('Product code', info['deviceinfo']['productcode']),
-     ('Serial number', info['deviceinfo']['deviceid']),
-     ('Firmware version', info['deviceinfo']['fwversion']),
-    ]
+    print('Error: Cannot configure camera in app install mode. Please restart the device.')
    else:
     dev = SonyExtCmdCamera(device)
 
@@ -424,20 +418,20 @@ def streamingCommand(write=None, file=None, driverName=None):
 
      data = SonyExtCmdCamera.LiveStreamingSNSInfo.pack(
       twitterEnabled = mydict['twitterEnabled'],
-      twitterConsumerKey = (mydict['twitterConsumerKey']+(b'\x00'*1025))[:1025],
-      twitterConsumerSecret = (mydict['twitterConsumerSecret']+(b'\x00'*1025))[:1025],
-      twitterAccessToken1 = (mydict['twitterAccessToken1']+(b'\x00'*1025))[:1025],
-      twitterAccessTokenSecret = (mydict['twitterAccessTokenSecret']+(b'\x00'*1025))[:1025],
-      twitterMessage = (mydict['twitterMessage']+(b'\x00'*401))[:401],
+      twitterConsumerKey = mydict['twitterConsumerKey'].ljust(1025, b'\x00'),
+      twitterConsumerSecret = mydict['twitterConsumerSecret'].ljust(1025, b'\x00'),
+      twitterAccessToken1 = mydict['twitterAccessToken1'].ljust(1025, b'\x00'),
+      twitterAccessTokenSecret = mydict['twitterAccessTokenSecret'].ljust(1025, b'\x00'),
+      twitterMessage = mydict['twitterMessage'].ljust(401, b'\x00'),
       facebookEnabled = mydict['facebookEnabled'],
-      facebookAccessToken = (mydict['facebookAccessToken']+(b'\x00'*1025))[:1025],
-      facebookMessage = (mydict['facebookMessage']+(b'\x00'*401))[:401],
+      facebookAccessToken = mydict['facebookAccessToken'].ljust(1025, b'\x00'),
+      facebookMessage = mydict['facebookMessage'].ljust(401, b'\x00'),
      )
      dev.setLiveStreamingSocialInfo(data)
 
      # assemble Streaming, may be multiple sets of 14
-     data = (1).to_bytes(4, byteorder='little')
-     data += (int((len(incoming)-9)/14)).to_bytes(4, byteorder='little')
+     data = b'\x01\x00\x00\x00'
+     data += struct.pack('<i', int((len(incoming)-9)/14))
      mydict = {}
      count = 1
      for key in incoming[9:]:
@@ -454,30 +448,30 @@ def streamingCommand(write=None, file=None, driverName=None):
        data += SonyExtCmdCamera.LiveStreamingServiceInfo1.pack(
         service = mydict['service'],
         enabled = mydict['enabled'],
-        macId = (mydict['macId']+(b'\x00'*41))[:41],
-        macSecret = (mydict['macSecret']+(b'\x00'*41))[:41],
+        macId = mydict['macId'].ljust(41, b'\x00'),
+        macSecret = mydict['macSecret'].ljust(41, b'\x00'),
         macIssueTime = mydict['macIssueTime'],
         unknown = 0, # mydict['unknown'],
        )
 
-       data += len(mydict['channels']).to_bytes(4, byteorder='little')
+       data += struct.pack('<i', len(mydict['channels']))
        for j in range(len(mydict['channels'])):
-        data += mydict['channels'][j].to_bytes(4, byteorder='little')
+        data += struct.pack('<i', mydict['channels'][j])
 
        data += SonyExtCmdCamera.LiveStreamingServiceInfo2.pack(
-        shortURL = (mydict['shortURL']+(b'\x00'*101))[:101],
+        shortURL = mydict['shortURL'].ljust(101, b'\x00'),
         videoFormat = mydict['videoFormat'],
        )
 
-       data += len(mydict['supportedFormats']).to_bytes(4, byteorder='little')
+       data += struct.pack('<i', len(mydict['supportedFormats']))
        for j in range(len(mydict['supportedFormats'])):
-        data += mydict['supportedFormats'][j].to_bytes(4, byteorder='little')
+        data += struct.pack('<i', mydict['supportedFormats'][j])
 
        data += SonyExtCmdCamera.LiveStreamingServiceInfo3.pack(
         enableRecordMode = mydict['enableRecordMode'],
-        videoTitle = (mydict['videoTitle']+(b'\x00'*401))[:401],
-        videoDescription = (mydict['videoDescription']+(b'\x00'*401))[:401],
-        videoTag = (mydict['videoTag']+(b'\x00'*401))[:401],
+        videoTitle = mydict['videoTitle'].ljust(401, b'\x00'),
+        videoDescription = mydict['videoDescription'].ljust(401, b'\x00'),
+        videoTag = mydict['videoTag'].ljust(401, b'\x00'),
        )
        count = 1
       else:
@@ -525,20 +519,13 @@ def wifiCommand(write=None, file=None, multi=False, driverName=None):
   device = getDevice(driver)
   if device:
    if isinstance(device, SonyMtpAppInstaller):
-    info = installApp(device)
-    print('')
-    props = [
-     ('Model', info['deviceinfo']['name']),
-     ('Product code', info['deviceinfo']['productcode']),
-     ('Serial number', info['deviceinfo']['deviceid']),
-     ('Firmware version', info['deviceinfo']['fwversion']),
-    ]
+    print('Error: Cannot configure camera in app install mode. Please restart the device.')
    else:
     dev = SonyExtCmdCamera(device)
 
     if write:
      incoming = json.load(write)
-     data = (int(len(incoming)/3)).to_bytes(4, byteorder='little')
+     data = struct.pack('<i', int(len(incoming)/3))
 
      mydict = {}
      count = 1
@@ -552,8 +539,8 @@ def wifiCommand(write=None, file=None, multi=False, driverName=None):
        # reassemble Struct
        apinfo = SonyExtCmdCamera.APInfo.pack(
         keyType = mydict['keyType'],
-        sid = (mydict['sid']+(b'\x00'*33))[:33],
-        key = (mydict['key']+(b'\x00'*65))[:65],
+        sid = mydict['sid'].ljust(33, b'\x00'),
+        key = mydict['key'].ljust(65, b'\x00'),
        )
        data += apinfo
        count = 1
